@@ -12,7 +12,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             "job_title",
             "job_location",
             "cover_letter",
-            "resume",
+            "resume_url",     
             "applied_at",
         ]
         read_only_fields = ["applied_at"]

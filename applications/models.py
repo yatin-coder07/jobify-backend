@@ -16,7 +16,6 @@ class JobApplication(models.Model):
       on_delete=models.CASCADE,
         related_name="applications"
    )
-   resume=models.FileField(
-      upload_to="resumes/")
+   resume_url = models.URLField()
    cover_letter=models.TextField(blank=True)
    applied_at=models.DateTimeField(auto_now_add=True)

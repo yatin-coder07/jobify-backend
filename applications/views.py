@@ -10,24 +10,62 @@ from .models import JobApplication
 from .serializers import JobApplicationSerializer
 from jobs.models import Job
 
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from .models import JobApplication
+from .serializers import JobApplicationSerializer
+from jobs.models import Job
+from utils.supabase import upload_resume
+
+
 class ApplyJobView(APIView):
     permission_classes = [IsAuthenticated]
-    def post(self,request,job_id):
+
+    def post(self, request, job_id):
         try:
-          job = Job.objects.get(id=job_id)
+            job = Job.objects.get(id=job_id)
         except Job.DoesNotExist:
-            return Response({"error": "Job not found"}, status=404)
+            return Response(
+                {"error": "Job not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+    
         if JobApplication.objects.filter(
             job=job, candidate=request.user
         ).exists():
-              return Response(
+            return Response(
                 {"error": "Already applied"},
-                status=status.HTTP_400_BAD_REQUEST)
-        serializer = JobApplicationSerializer(data = request.data)
-        if serializer.is_valid():
-            serializer.save(job=job, candidate=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+        resume_file = request.FILES.get("resume")
+        if not resume_file:
+            return Response(
+                {"error": "Resume is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            resume_url = upload_resume(resume_file, resume_file.name)
+        except Exception:
+            return Response(
+                {"error": "Failed to upload resume"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        application = JobApplication.objects.create(
+            job=job,
+            candidate=request.user,
+            cover_letter=request.data.get("cover_letter", ""),
+            resume_url=resume_url,
+        )
+        serializer = JobApplicationSerializer(application)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 class EmployerApplicationsView(APIView):
     permission_classes = [IsAuthenticated]
