@@ -152,7 +152,7 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
    "https://jobify-frontend-nine.vercel.app"
 ]
-CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOW_CREDENTIALS = True
 
 MEDIA_URL = "/media/"
