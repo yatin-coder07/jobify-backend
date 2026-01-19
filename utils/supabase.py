@@ -11,18 +11,15 @@ def upload_resume(file, filename):
     try:
         unique_name = f"{uuid.uuid4()}-{filename}"
 
-        file_bytes = file.read()
-
-        response = supabase.storage.from_("resumes").upload(
+        supabase.storage.from_("resumes").upload(
             unique_name,
-            file_bytes,
+            file.read(),
             {
                 "content-type": file.content_type
             },
         )
-        if response.error:
-            raise Exception(response.error)
 
+        # ✅ If no exception → upload succeeded
         return (
             f"{os.environ.get('SUPABASE_URL')}"
             f"storage/v1/object/public/resumes/{unique_name}"
