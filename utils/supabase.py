@@ -1,5 +1,6 @@
 from supabase import create_client
 import os
+import uuid
 
 supabase = create_client(
     os.environ.get("SUPABASE_URL"),
@@ -7,13 +8,27 @@ supabase = create_client(
 )
 
 def upload_resume(file, filename):
-    res = supabase.storage.from_("resumes").upload(
-        filename,
-        file,
-        {"content-type": file.content_type},
-    )
+    try:
+        unique_name = f"{uuid.uuid4()}-{filename}"
 
-    if res.get("error"):
-        raise Exception("Upload failed")
+        file_bytes = file.read()  # ✅ convert to bytes
 
-    return f"{os.environ.get('SUPABASE_URL')}/storage/v1/object/public/resumes/{filename}"
+        response = supabase.storage.from_("resumes").upload(
+            unique_name,
+            file_bytes,
+            {
+                "content-type": file.content_type
+            },
+        )
+
+        if response.get("error"):
+            raise Exception(response["error"])
+
+        return (
+            f"{os.environ.get('SUPABASE_URL')}"
+            f"storage/v1/object/public/resumes/{unique_name}"
+        )
+
+    except Exception as e:
+        print("SUPABASE UPLOAD ERROR:", str(e))
+        raise
