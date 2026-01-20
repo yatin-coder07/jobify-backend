@@ -150,7 +150,7 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-  "https://jobify-frontend-58vixd36c-yatin-coder07s-projects.vercel.app"
+  "https://jobify-frontend-o7fperik2-yatin-coder07s-projects.vercel.app"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
