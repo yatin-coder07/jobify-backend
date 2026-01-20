@@ -10,6 +10,8 @@ from .serializers import JobSerializer
 from .permissions import IsEmployer
 from rest_framework import generics, permissions
 from .models import Job
+from django.db.models import Q
+
 
 
 # Create your views here.
