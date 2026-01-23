@@ -18,7 +18,7 @@ from rest_framework import status
 from .models import JobApplication
 from .serializers import JobApplicationSerializer
 from jobs.models import Job
-from utils.supabase import upload_resume
+from utils.supabase import upload_file
 
 class ApplyJobView(APIView):
     permission_classes = [IsAuthenticated]
@@ -51,7 +51,7 @@ class ApplyJobView(APIView):
             )
 
         try:
-            resume_url = upload_resume(resume_file, resume_file.name)
+            resume_url = upload_file(resume_file, resume_file.name)
             print("RESUME URL:", resume_url)
         except Exception as e:
             print("UPLOAD FAILED:", str(e))
