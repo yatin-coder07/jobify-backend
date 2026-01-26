@@ -1,30 +1,57 @@
-#serializer is saving to the database what the user sent from the frontend
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import CandidateProfile
+from django.core.files.uploadedfile import UploadedFile
+
+from .models import (
+    CandidateProfile,
+    EmployerProfile,
+    Profile,
+    Education,
+    Experience,
+    Skill,
+)
+
 from utils.supabase import upload_file
-from .models import EmployerProfile, Profile
+
 
 class RegisterSerializer(serializers.ModelSerializer):
-    role = serializers.CharField(write_only=True) #because role is not a field in User model
+    role = serializers.CharField(write_only=True)
+
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'role']
+        fields = ["username", "email", "password", "role"]
         extra_kwargs = {
-            'password': {'write_only': True}
+            "password": {"write_only": True}
         }
+
     def create(self, validated_data):
-        role = validated_data.pop('role')
+        role = validated_data.pop("role")
 
         user = User.objects.create_user(**validated_data)
         user.profile.role = role
         user.profile.save()
 
         return user
+class SkillSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Skill
+        fields = ["id", "name"]
+
 
 class CandidateProfileSerializer(serializers.ModelSerializer):
-    profile_image = serializers.ImageField(write_only=True, required=False)
+    skills = SkillSerializer(many=True, read_only=True)
+
+ 
+    profile_image = serializers.FileField(write_only=True, required=False)
     resume = serializers.FileField(write_only=True, required=False)
+
+    
+    profile_image_url = serializers.CharField(
+        source="profile_image", read_only=True
+    )
+    resume_url = serializers.CharField(
+        source="resume", read_only=True
+    )
 
     class Meta:
         model = CandidateProfile
@@ -33,14 +60,15 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
             "full_name",
             "bio",
             "skills",
-            "profile_image",
-            "resume",
+            "portfolio_link",
+            "linkedin_link",
+            "profile_image",      
+            "resume",            
+            "profile_image_url",  
+            "resume_url",         
         ]
 
     def validate(self, attrs):
-        """
-        Ensure only candidates can create/update candidate profiles
-        """
         user = self.context["request"].user
 
         try:
@@ -59,48 +87,53 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
         request = self.context["request"]
         user = request.user
 
+        skills_data = request.data.getlist("skills")
         profile_image = validated_data.pop("profile_image", None)
         resume = validated_data.pop("resume", None)
-
-        if CandidateProfile.objects.filter(user=user).exists():
-            raise serializers.ValidationError(
-                "Candidate profile already exists"
-            )
 
         candidate_profile = CandidateProfile.objects.create(
             user=user,
             **validated_data
         )
 
-        if profile_image:
+        for skill_name in skills_data:
+            skill, _ = Skill.objects.get_or_create(name=skill_name.strip())
+            candidate_profile.skills.add(skill)
+
+        if isinstance(profile_image, UploadedFile):
             candidate_profile.profile_image = upload_file(
-                profile_image,
-                "profile-images"
+                profile_image, "profile_image"
             )
 
-        if resume:
+        if isinstance(resume, UploadedFile):
             candidate_profile.resume = upload_file(
-                resume,
-                "resumes"
+                resume, "resumes"
             )
 
         candidate_profile.save()
         return candidate_profile
 
     def update(self, instance, validated_data):
+        request = self.context["request"]
+
+        skills_data = request.data.getlist("skills")
         profile_image = validated_data.pop("profile_image", None)
         resume = validated_data.pop("resume", None)
 
-        if profile_image:
+        if skills_data:
+            instance.skills.clear()
+            for skill_name in skills_data:
+                skill, _ = Skill.objects.get_or_create(name=skill_name.strip())
+                instance.skills.add(skill)
+
+        if isinstance(profile_image, UploadedFile):
             instance.profile_image = upload_file(
-                profile_image,
-                "profile-images"
+                profile_image, "profile_image"
             )
 
-        if resume:
+        if isinstance(resume, UploadedFile):
             instance.resume = upload_file(
-                resume,
-                "resumes"
+                resume, "resumes"
             )
 
         for attr, value in validated_data.items():
@@ -108,6 +141,20 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+
+class EducationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Education
+        fields = "__all__"
+        read_only_fields = ["candidate"]
+
+
+class ExperienceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Experience
+        fields = "__all__"
+        read_only_fields = ["candidate"]
 
 
 class EmployerProfileSerializer(serializers.ModelSerializer):
@@ -126,9 +173,6 @@ class EmployerProfileSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        """
-        Ensure only employers can create/update employer profiles
-        """
         user = self.context["request"].user
 
         try:
@@ -144,9 +188,7 @@ class EmployerProfileSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        request = self.context["request"]
-        user = request.user
-
+        user = self.context["request"].user
         logo_file = validated_data.pop("logo", None)
 
         employer_profile = EmployerProfile.objects.create(
@@ -154,10 +196,10 @@ class EmployerProfileSerializer(serializers.ModelSerializer):
             **validated_data
         )
 
-        if logo_file:
+        if isinstance(logo_file, UploadedFile):
             employer_profile.logo = upload_file(
                 logo_file,
-                bucket_name="logo"
+                "logo"
             )
             employer_profile.save()
 
@@ -166,10 +208,10 @@ class EmployerProfileSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         logo_file = validated_data.pop("logo", None)
 
-        if logo_file:
+        if isinstance(logo_file, UploadedFile):
             instance.logo = upload_file(
                 logo_file,
-                bucket_name="logo"
+                "logo"
             )
 
         for attr, value in validated_data.items():

@@ -16,7 +16,7 @@ def get_supabase_client():
 def upload_file(file, bucket_name):
     supabase = get_supabase_client()
 
-    unique_name = f"{uuid.uuid4()}-{file.name}"
+    unique_name = f"{uuid.uuid4()}.{file.name.split('.')[-1]}"
 
     supabase.storage.from_(bucket_name).upload(
         unique_name,
@@ -24,4 +24,4 @@ def upload_file(file, bucket_name):
         {"content-type": file.content_type},
     )
 
-    return f"{os.getenv('SUPABASE_URL')}storage/v1/object/public/{bucket_name}/{unique_name}"
+    return f"{os.getenv('SUPABASE_URL').rstrip('/')}/storage/v1/object/public/{bucket_name}/{unique_name}"

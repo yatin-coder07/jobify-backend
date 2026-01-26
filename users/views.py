@@ -7,8 +7,8 @@ from .serializers import RegisterSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
-from .models import CandidateProfile,EmployerProfile
-from .serializers import CandidateProfileSerializer,EmployerProfileSerializer
+from .models import CandidateProfile,EmployerProfile,Experience,Education
+from .serializers import CandidateProfileSerializer,EmployerProfileSerializer,ExperienceSerializer,EducationSerializer
 
 
 # views triggered during user registration and other user-related actions and they trigger the serializers to process data
@@ -59,6 +59,7 @@ class UserRoleView(APIView):
         )
 
 class CandidateProfileView(APIView):
+     permission_classes = [IsAuthenticated]
 
      def get(self, request):
         """
@@ -117,6 +118,56 @@ class CandidateProfileView(APIView):
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
         )
+     
+class ExperienceView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        profile = CandidateProfile.objects.get(user=request.user)
+        serializer = ExperienceSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(candidate=profile)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def delete(self, request, pk):
+        experience = Experience.objects.get(
+            pk=pk, candidate__user=request.user
+        )
+        experience.delete()
+        return Response(status=204)
+    def get(self, request):
+        try:
+            profile = CandidateProfile.objects.get(user=request.user)
+        except CandidateProfile.DoesNotExist:
+            return Response(
+                {"detail": "Candidate profile not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        experiences = Experience.objects.filter(candidate=profile)
+        serializer = ExperienceSerializer(experiences, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    
+    
+class EducationView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        profile = CandidateProfile.objects.get(user=request.user)
+        serializer = EducationSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(candidate=profile)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+    def get(self, request):
+        profile = CandidateProfile.objects.get(user=request.user)
+        education = Education.objects.filter(candidate=profile)
+        serializer = EducationSerializer(education, many=True)
+        return Response(serializer.data, status=200)
+
+
 class EmployerProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

@@ -20,10 +20,46 @@ class CandidateProfile(models.Model):
     bio=models.TextField(blank=True)
     skills = models.ManyToManyField("Skill", blank=True)
     resume = models.URLField( blank=True, null=True)
+    portfolio_link=models.URLField(blank=True,null=True)
+    linkedin_link=models.URLField(blank=True,null=True)
 
     def __str__(self):
         return self.full_name
     
+
+class Experience(models.Model):
+    candidate = models.ForeignKey(
+        CandidateProfile,
+        on_delete=models.CASCADE,
+        related_name="experiences"
+    )
+    company_name = models.CharField(max_length=150)
+    role = models.CharField(max_length=150)
+    role_description=models.TextField(null=True)
+    start_date = models.DateField()
+    end_date = models.DateField(blank=True, null=True)
+    is_current = models.BooleanField(default=False)
+   
+
+    def __str__(self):
+        return f"{self.role} at {self.company_name}"
+
+class Education(models.Model):
+    candidate = models.ForeignKey(
+        CandidateProfile,
+        on_delete=models.CASCADE,
+        related_name="educations"
+    )
+    institution = models.CharField(max_length=150)
+    degree = models.CharField(max_length=150)
+    start_year = models.IntegerField()
+    end_year = models.IntegerField(blank=True, null=True)
+    is_current=models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.degree} - {self.institution}"
+
+
 class EmployerProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     company_name = models.CharField(max_length=150)

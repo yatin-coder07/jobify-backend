@@ -154,7 +154,7 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-  "https://jobify-frontend-o7fperik2-yatin-coder07s-projects.vercel.app"
+  "http://localhost:3000"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
