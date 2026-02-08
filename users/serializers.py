@@ -36,10 +36,22 @@ class SkillSerializer(serializers.ModelSerializer):
     class Meta:
         model = Skill
         fields = ["id", "name"]
+class EducationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Education
+        fields = "__all__"
+       
 
+
+class ExperienceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Experience
+        fields = "__all__"
 
 class CandidateProfileSerializer(serializers.ModelSerializer):
     skills = SkillSerializer(many=True, read_only=True)
+    experiences = ExperienceSerializer(many=True, read_only=True)
+    educations = EducationSerializer(many=True, read_only=True)
 
  
     profile_image = serializers.FileField(write_only=True, required=False)
@@ -49,24 +61,14 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
     profile_image_url = serializers.CharField(
         source="profile_image", read_only=True
     )
+    
     resume_url = serializers.CharField(
         source="resume", read_only=True
     )
 
     class Meta:
         model = CandidateProfile
-        fields = [
-            "id",
-            "full_name",
-            "bio",
-            "skills",
-            "portfolio_link",
-            "linkedin_link",
-            "profile_image",      
-            "resume",            
-            "profile_image_url",  
-            "resume_url",         
-        ]
+        fields = "__all__"
 
     def validate(self, attrs):
         user = self.context["request"].user
@@ -143,34 +145,20 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
         return instance
 
 
-class EducationSerializer(serializers.ModelSerializer):
+
+        
+
+class UserMiniSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Education
-        fields = "__all__"
-        read_only_fields = ["candidate"]
-
-
-class ExperienceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Experience
-        fields = "__all__"
-        read_only_fields = ["candidate"]
-
-
+        model = User
+        fields = ["id", "username", "first_name", "last_name"]
 class EmployerProfileSerializer(serializers.ModelSerializer):
     logo = serializers.ImageField(write_only=True, required=False)
-
+    user = UserMiniSerializer(read_only=True)
     class Meta:
         model = EmployerProfile
-        fields = [
-            "id",
-            "company_name",
-            "description",
-            "website",
-            "industry",
-            "location",
-            "logo",
-        ]
+        fields ="__all__"
+        
 
     def validate(self, attrs):
         user = self.context["request"].user

@@ -63,9 +63,10 @@ class Education(models.Model):
 class EmployerProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     company_name = models.CharField(max_length=150)
-    description = models.TextField()
-    website = models.URLField(blank=True)
-    industry = models.CharField(max_length=100)
+    description = models.TextField(null=True)
+    linkedin_link=models.URLField(blank=True, null=True)  
+    website_link = models.URLField(blank=True)
+    about_company= models.TextField(null=True)
     location = models.CharField(max_length=100)
     logo = models.URLField(blank=True, null=True)
 

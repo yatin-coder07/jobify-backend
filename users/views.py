@@ -61,19 +61,14 @@ class UserRoleView(APIView):
 class CandidateProfileView(APIView):
      permission_classes = [IsAuthenticated]
 
-     def get(self, request):
-        """
-        Get candidate profile (dashboard)
-        """
-        try:
-            profile = CandidateProfile.objects.get(user=request.user)
-        except CandidateProfile.DoesNotExist:
-            return Response(
-                {"detail": "Candidate profile not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        serializer = CandidateProfileSerializer(profile)
-        return Response(serializer.data , status=status.HTTP_200_OK)
+     def get(self, request, id=None):
+        if id:
+            candidate = CandidateProfile.objects.get(id=id)
+        else:
+            candidate = CandidateProfile.objects.get(user=request.user)
+
+        serializer = CandidateProfileSerializer(candidate)
+        return Response(serializer.data)
      def post(self, request):
          """Create profile"""
          serializer = CandidateProfileSerializer(data = request.data, context={'request':request})
@@ -236,4 +231,32 @@ class EmployerProfileView(APIView):
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
+        )
+class CandidateProfileCheckView(APIView):
+    def get(self, request):
+        user = request.user
+
+        if CandidateProfile.objects.filter(user=user).exists():
+            return Response(
+                {"detail": "Profile already exists"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response(
+            {"detail": "Profile does not exist"},
+            status=status.HTTP_200_OK
+        )
+class EmployerProfileCheckView(APIView):
+    def get(self, request):
+        user = request.user
+
+        if EmployerProfile.objects.filter(user=user).exists():
+            return Response(
+                {"detail": "Profile already exists"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response(
+            {"detail": "Profile does not exist"},
+            status=status.HTTP_200_OK
         )

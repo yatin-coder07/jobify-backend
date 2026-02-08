@@ -5,7 +5,14 @@ from jobs.models import Job
 User = settings.AUTH_USER_MODEL
 
 class JobApplication(models.Model):
-    # Fields for the JobApplication model
+
+   STATUS_CHOICES=[
+      ("new","New"),
+      ("reviewed","Reviewed"),
+      ("accepted","Accepted"),
+      ("rejected","Rejected"),
+   ]
+  
    job=models.ForeignKey(
       Job,
       on_delete=models.CASCADE,
@@ -19,3 +26,4 @@ class JobApplication(models.Model):
    resume_url = models.URLField()
    cover_letter=models.TextField(blank=True)
    applied_at=models.DateTimeField(auto_now_add=True)
+   status=models.CharField(null=True,choices=STATUS_CHOICES,default="new",max_length=20)
