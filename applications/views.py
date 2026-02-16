@@ -20,6 +20,7 @@ from .models import JobApplication
 from .serializers import JobApplicationSerializer
 from jobs.models import Job
 from utils.supabase import upload_file
+from django.db.models import Q
 
 class ApplyJobView(APIView):
     permission_classes = [IsAuthenticated]
@@ -94,9 +95,15 @@ class EmployerApplicationsView(APIView):
         serializer = JobApplicationSerializer(applications, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     def get(self, request):
+        search = request.query_params.get("search", "")
         applications = JobApplication.objects.filter(
             job__employer=request.user
         )
+        if search:
+            applications = applications.filter(
+                 Q(candidate__first_name__icontains=search) |
+                Q(job__title__icontains=search)
+            )
         serializer = JobApplicationSerializer(applications, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     def patch(self, request, application_id):
