@@ -1,31 +1,27 @@
 import os
 import uuid
+from supabase import create_client
 
-def upload_resume(file, filename):
-    try:
-       
-        from supabase import create_client
 
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+def get_supabase_client():
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
 
-      
-        if not supabase_url or not supabase_key:
-            raise Exception("Supabase env vars missing")
+    if not supabase_url or not supabase_key:
+        raise Exception("Supabase env vars missing")
 
-        supabase = create_client(supabase_url, supabase_key)
+    return create_client(supabase_url, supabase_key)
 
-        unique_name = f"{uuid.uuid4()}-{filename}"
 
-        supabase.storage.from_("resumes").upload(
-            unique_name,
-            file.read(),
-            {"content-type": file.content_type},
-        )
+def upload_file(file, bucket_name):
+    supabase = get_supabase_client()
 
-        return f"{supabase_url}storage/v1/object/public/resumes/{unique_name}"
+    unique_name = f"{uuid.uuid4()}.{file.name.split('.')[-1]}"
 
-    except Exception as e:
-        
-        print("SUPABASE UPLOAD FAILED:", str(e))
-        return None
+    supabase.storage.from_(bucket_name).upload(
+        unique_name,
+        file.read(),
+        {"content-type": file.content_type},
+    )
+
+    return f"{os.getenv('SUPABASE_URL').rstrip('/')}/storage/v1/object/public/{bucket_name}/{unique_name}"

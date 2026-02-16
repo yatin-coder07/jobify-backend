@@ -1,6 +1,7 @@
 from django.shortcuts import render
 
 # Create your views here.
+from httpx import request
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -18,12 +19,20 @@ from rest_framework import status
 from .models import JobApplication
 from .serializers import JobApplicationSerializer
 from jobs.models import Job
-from utils.supabase import upload_resume
+from utils.supabase import upload_file
+from django.db.models import Q
 
 class ApplyJobView(APIView):
     permission_classes = [IsAuthenticated]
+ 
 
     def post(self, request, job_id):
+        if not request.FILES:
+         return Response(
+        {"error": "Request must be multipart/form-data"},
+        status=status.HTTP_400_BAD_REQUEST
+    )
+
         print("=== APPLY JOB HIT ===")
 
         try:
@@ -51,7 +60,7 @@ class ApplyJobView(APIView):
             )
 
         try:
-            resume_url = upload_resume(resume_file, resume_file.name)
+            resume_url = upload_file(resume_file, "resumes")
             print("RESUME URL:", resume_url)
         except Exception as e:
             print("UPLOAD FAILED:", str(e))
@@ -76,12 +85,55 @@ class ApplyJobView(APIView):
 
 class EmployerApplicationsView(APIView):
     permission_classes = [IsAuthenticated]
+
+    def post(self, request, job_id):
+        try:
+            job = Job.objects.get(id=job_id, employer=request.user)
+        except Job.DoesNotExist:
+            return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+        applications = JobApplication.objects.filter(job=job)
+        serializer = JobApplicationSerializer(applications, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     def get(self, request):
+        search = request.query_params.get("search", "")
         applications = JobApplication.objects.filter(
             job__employer=request.user
         )
+        if search:
+            applications = applications.filter(
+                 Q(candidate__first_name__icontains=search) |
+                Q(job__title__icontains=search)
+            )
         serializer = JobApplicationSerializer(applications, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    def patch(self, request, application_id):
+     try:
+        application = JobApplication.objects.get(
+            id=application_id,
+            job__employer=request.user
+        )
+     except JobApplication.DoesNotExist:
+        return Response({"error": "Application not found"}, status=404)
+
+     serializer = JobApplicationSerializer(
+        application,
+        data=request.data,
+        partial=True
+    )
+
+     if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=200)
+
+     return Response(serializer.errors, status=400)
+
+    def delete(self, request, application_id):
+        try:
+            application = JobApplication.objects.get(id=application_id, job__employer=request.user)
+        except JobApplication.DoesNotExist:
+            return Response({"error": "Application not found"}, status=status.HTTP_404_NOT_FOUND)
+        application.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class CandidateApplicationsView(APIView):
     permission_classes = [IsAuthenticated]
