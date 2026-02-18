@@ -65,6 +65,8 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
     resume_url = serializers.CharField(
         source="resume", read_only=True
     )
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+
 
     class Meta:
         model = CandidateProfile
