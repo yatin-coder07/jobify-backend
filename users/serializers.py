@@ -67,8 +67,9 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model = CandidateProfile
-        fields = "__all__"
+     model = CandidateProfile
+     exclude = ["user"]
+
 
     def validate(self, attrs):
         user = self.context["request"].user
