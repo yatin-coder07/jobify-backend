@@ -65,11 +65,12 @@ class CandidateProfileSerializer(serializers.ModelSerializer):
     resume_url = serializers.CharField(
         source="resume", read_only=True
     )
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+
 
     class Meta:
-     model = CandidateProfile
-     exclude = ["user"]
-
+        model = CandidateProfile
+        fields = "__all__"
 
     def validate(self, attrs):
         user = self.context["request"].user
