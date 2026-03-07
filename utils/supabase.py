@@ -10,6 +10,12 @@ def get_supabase_client():
     if not supabase_url or not supabase_key:
         raise Exception("Supabase env vars missing")
 
+    # the underlying client expects the base URL to end with a slash
+    # (error: "Storage endpoint URL should have a trailing slash.").
+    # normalise here so callers don't have to remember it.
+    if not supabase_url.endswith("/"):
+        supabase_url = supabase_url + "/"
+
     return create_client(supabase_url, supabase_key)
 
 
@@ -24,4 +30,6 @@ def upload_file(file, bucket_name):
         {"content-type": file.content_type},
     )
 
-    return f"{os.getenv('SUPABASE_URL').rstrip('/')}/storage/v1/object/public/{bucket_name}/{unique_name}"
+    # we can rstrip here so the returned URL doesn't have a double slash
+    base = os.getenv("SUPABASE_URL", "").rstrip("/")
+    return f"{base}/storage/v1/object/public/{bucket_name}/{unique_name}"
