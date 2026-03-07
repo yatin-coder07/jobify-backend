@@ -90,10 +90,14 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 
 
+import os
+import dj_database_url
+
 DATABASES = {
     "default": dj_database_url.config(
-        default="postgresql://postgres.ghtnfkmrkutlhvplgrsy:Jobifydatabase007@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres",
-        conn_max_age=600
+        default=os.environ.get("DATABASE_URL"),
+        conn_max_age=600,
+        ssl_require=True,
     )
 }
 # Password validation
