@@ -29,7 +29,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-)yr9=de=-1*fc6ac)rd3bkgdmlq6l!d(ilk0+3*f-_$=!_g$q!'
+SECRET_KEY = os.environ.get("SECRET_KEY")
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG =  os.environ.get("DEBUG", "False") == "True"
@@ -90,14 +92,12 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 
 
-import os
-import dj_database_url
 
 DATABASES = {
     "default": dj_database_url.config(
         default=os.environ.get("DATABASE_URL"),
         conn_max_age=600,
-        ssl_require=True,
+        ssl_require=not DEBUG
     )
 }
 # Password validation
