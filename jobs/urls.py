@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import JobCreateView, JobDeleteView, JobDetailView, JobListView, EmployerJobListView
+from .views import JobCreateView, JobDeleteView, JobDetailView, JobListView, EmployerJobListView, ResumeMatchJobAPIView
 
 urlpatterns = [
     path('', JobListView.as_view()),
@@ -7,4 +7,5 @@ urlpatterns = [
     path("my-jobs/", EmployerJobListView.as_view()),
       path("<int:pk>/", JobDetailView.as_view()),
     path("delete/<int:job_id>/", JobDeleteView.as_view()),
+    path('match/<str:resume_id>/', ResumeMatchJobAPIView.as_view(), name='resume-job-matches')
 ]

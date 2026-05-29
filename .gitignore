@@ -1,0 +1,20 @@
+# Node dependencies (Frontend/Backend)
+node_modules/
+.pnpm-store/
+.yarn/
+
+# Python Virtual Environments (Backend)
+venv/
+.venv/
+env/
+ENV/
+pyvenv.cfg
+
+# OS metadata files
+.DS_Store
+Thumbs.db
+
+# Environment secret keys (Never commit these!)
+.env
+.env.local
+.env.development.local

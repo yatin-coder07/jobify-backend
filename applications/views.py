@@ -1,37 +1,31 @@
+import logging
 from django.shortcuts import render
-
-# Create your views here.
-from httpx import request
+from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
-
-from .models import JobApplication
-from .serializers import JobApplicationSerializer
-from jobs.models import Job
-
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework import status
 
 from .models import JobApplication
 from .serializers import JobApplicationSerializer
 from jobs.models import Job
 from utils.supabase import upload_file
-from django.db.models import Q
+
+# Import the clean agent handler from the AI workspace application layer
+from ai.services.agent_service import AIApplicationAgent
+from ai.models import Resume
+
+logger = logging.getLogger(__name__)
 
 class ApplyJobView(APIView):
     permission_classes = [IsAuthenticated]
- 
 
     def post(self, request, job_id):
         if not request.FILES:
-         return Response(
-        {"error": "Request must be multipart/form-data"},
-        status=status.HTTP_400_BAD_REQUEST
-    )
+            return Response(
+                {"error": "Request must be multipart/form-data"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         print("=== APPLY JOB HIT ===")
 
@@ -69,18 +63,88 @@ class ApplyJobView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+        # ⚡ OPTIONAL STEP: Grab the most recent processed active Resume instance 
+        # or fallback to None if it hasn't been parsed inside the `ai` engine yet.
+        active_resume = Resume.objects.filter(user=request.user).order_by('-created_at').first()
+
+        # 🚀 Step 1: Initialize the Application Row with a 'pending_approval' status floor
         application = JobApplication.objects.create(
             job=job,
             candidate=request.user,
-            cover_letter=request.data.get("cover_letter", ""),
+            resume=active_resume,
             resume_url=resume_url,
+            cover_letter="Drafting in progress...",
+            status="pending_approval"
         )
+
+        try:
+            # 🚀 Step 2: Trigger the agent workflow (user_has_approved=False).
+            # The agent creates the cover letter, calls tool 1 to overwrite "Drafting in progress...", and stops.
+            AIApplicationAgent.run_workflow(application_id=application.id, user_has_approved=False)
+            
+            # Refresh from database memory block to return the freshly synthesized cover letter to frontend
+            application.refresh_from_db()
+        except Exception as agent_err:
+            logger.error(f"Agent failed to draft letter initially: {str(agent_err)}")
+            application.status = "failed"
+            application.save()
 
         return Response(
             JobApplicationSerializer(application).data,
             status=status.HTTP_201_CREATED
         )
 
+
+class ConfirmAgentSubmissionView(APIView):
+    """
+    Endpoint for Human-In-The-Loop explicit approval confirmation.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, application_id):
+        action = request.data.get("action")  # Expected options: "APPROVE" or "REJECT"
+        user_edited_letter = request.data.get("cover_letter", None)
+
+        try:
+            application = JobApplication.objects.get(id=application_id, candidate=request.user)
+        except JobApplication.DoesNotExist:
+            return Response({"error": "Application context row not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if action == "REJECT":
+            application.status = "rejected"
+            application.save()
+            return Response({"message": "Application rejected and closed by user."}, status=status.HTTP_200_OK)
+
+        if action == "APPROVE":
+            # If user sent over modifications, save it right before submitting
+            if user_edited_letter:
+                application.cover_letter = user_edited_letter
+                application.save()
+
+            # Set the approval flag to True. The agent skips the drafting block,
+            # triggers Tool 2 (automation tool), and flips state to 'applied'.
+            try:
+                application.status = "approved"
+                application.save()
+
+                AIApplicationAgent.run_workflow(
+                    application_id=application.id,
+                    user_has_approved=True,
+                    final_letter_text=application.cover_letter
+                )
+
+                application.refresh_from_db()
+                return Response({
+                    "message": "Agent execution approved. Automated submission successful.",
+                    "application": JobApplicationSerializer(application).data
+                }, status=status.HTTP_200_OK)
+
+            except Exception as e:
+                application.status = "failed"
+                application.save()
+                return Response({"error": f"Automation pipeline failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"error": "Invalid action value passed"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class EmployerApplicationsView(APIView):
@@ -94,6 +158,7 @@ class EmployerApplicationsView(APIView):
         applications = JobApplication.objects.filter(job=job)
         serializer = JobApplicationSerializer(applications, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
     def get(self, request):
         search = request.query_params.get("search", "")
         applications = JobApplication.objects.filter(
@@ -101,31 +166,32 @@ class EmployerApplicationsView(APIView):
         )
         if search:
             applications = applications.filter(
-                 Q(candidate__first_name__icontains=search) |
+                Q(candidate__first_name__icontains=search) |
                 Q(job__title__icontains=search)
             )
         serializer = JobApplicationSerializer(applications, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
     def patch(self, request, application_id):
-     try:
-        application = JobApplication.objects.get(
-            id=application_id,
-            job__employer=request.user
+        try:
+            application = JobApplication.objects.get(
+                id=application_id,
+                job__employer=request.user
+            )
+        except JobApplication.DoesNotExist:
+            return Response({"error": "Application not found"}, status=404)
+
+        serializer = JobApplicationSerializer(
+            application,
+            data=request.data,
+            partial=True
         )
-     except JobApplication.DoesNotExist:
-        return Response({"error": "Application not found"}, status=404)
 
-     serializer = JobApplicationSerializer(
-        application,
-        data=request.data,
-        partial=True
-    )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=200)
 
-     if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=200)
-
-     return Response(serializer.errors, status=400)
+        return Response(serializer.errors, status=400)
 
     def delete(self, request, application_id):
         try:
@@ -135,14 +201,19 @@ class EmployerApplicationsView(APIView):
         application.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
 class CandidateApplicationsView(APIView):
     permission_classes = [IsAuthenticated]
-    def get(self , request):
+
+    def get(self, request):
         applications = JobApplication.objects.filter(candidate=request.user)
-        serializer=JobApplicationSerializer(applications, many = True)
+        serializer = JobApplicationSerializer(applications, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class DeleteApplicationView(APIView):
     permission_classes = [IsAuthenticated]
+
     def delete(self, request, application_id):
         try:
             application = JobApplication.objects.get(id=application_id, candidate=request.user)
