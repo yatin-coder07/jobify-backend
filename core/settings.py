@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 import os
 import dj_database_url
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 
 
@@ -32,6 +36,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG =  os.environ.get("DEBUG", "False") == "True"
@@ -46,10 +51,12 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
+    'django.contrib.postgres',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'jobs',
     'applications',
+    'ai',
      'users.apps.UsersConfig',
      'rest_framework',
       'corsheaders',
@@ -59,6 +66,7 @@ MIDDLEWARE = [
    
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    
     'corsheaders.middleware.CorsMiddleware',
      'django.middleware.security.SecurityMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -99,6 +107,21 @@ DATABASES = {
         conn_max_age=600,
         ssl_require=not DEBUG
     )
+}
+
+CACHES = {
+    "default": {
+        "BACKEND":
+        "django_redis.cache.RedisCache",
+
+        "LOCATION":
+        "redis://127.0.0.1:6379/1",
+
+        "OPTIONS": {
+            "CLIENT_CLASS":
+            "django_redis.client.DefaultClient"
+        }
+    }
 }
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators

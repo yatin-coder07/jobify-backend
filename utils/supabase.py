@@ -1,11 +1,15 @@
 import os
 import uuid
 from supabase import create_client
+from django.conf import settings
 
 
 def get_supabase_client():
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+
+    print("URL:", settings.SUPABASE_URL)
+    print("KEY:", settings.SUPABASE_SERVICE_KEY[:20])
 
     if not supabase_url or not supabase_key:
         raise Exception("Supabase env vars missing")
